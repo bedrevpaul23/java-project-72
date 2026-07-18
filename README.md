@@ -7,3 +7,6 @@
 ### Maintainability and test coverage:
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=bedrevpaul23_java-project-72&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=bedrevpaul23_java-project-72)
 [![Coverage](https://sonarcloud.io/api/project_badges/measure?project=bedrevpaul23_java-project-72&metric=coverage)](https://sonarcloud.io/summary/new_code?id=bedrevpaul23_java-project-72)
+
+### Deployed application:
+https://java-project-72-yhix.onrender.com
