@@ -11,6 +11,7 @@ plugins {
     checkstyle
     jacoco
     id("org.sonarqube") version "7.3.1.8318"
+    id("com.gradleup.shadow") version "9.6.0"
 }
 
 group = "hexlet.code"
@@ -27,8 +28,10 @@ dependencies {
 
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
-    // This dependency is used by the application.
-    implementation(libs.guava)
+    implementation("io.javalin:javalin:7.2.2")
+    implementation("org.slf4j:slf4j-simple:2.0.18")
+
+    testImplementation("io.javalin:javalin-testtools:7.2.2")
 }
 
 // Apply a specific Java toolchain to ease working on different environments.

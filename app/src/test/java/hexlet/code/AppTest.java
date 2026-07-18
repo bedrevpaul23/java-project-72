@@ -3,34 +3,26 @@
  */
 package hexlet.code;
 
+import static io.javalin.testtools.JavalinTest.test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
 
 import org.junit.jupiter.api.Test;
 
 class AppTest {
     @Test
-    void appHasAGreeting() {
-        App classUnderTest = new App();
-        assertNotNull(classUnderTest.getGreeting(), "app should have a greeting");
+    void appCanBeCreated() {
+        var app = App.getApp();
+
+        assertNotNull(app);
     }
 
     @Test
-    void mainPrintsGreeting() {
-        var output = new ByteArrayOutputStream();
-        var originalOut = System.out;
-
-        try (var printStream = new PrintStream(output, true, StandardCharsets.UTF_8)) {
-            System.setOut(printStream);
-            App.main(new String[] {});
-        } finally {
-            System.setOut(originalOut);
-        }
-
-        assertEquals("Hello World!" + System.lineSeparator(), output.toString(StandardCharsets.UTF_8));
+    void rootRouteReturnsHelloWorld() {
+        test(App.getApp(), (server, client) -> {
+            var response = client.get("/");
+            assertEquals(200, response.code());
+            assertEquals("Hello World", response.body().string());
+        });
     }
 }

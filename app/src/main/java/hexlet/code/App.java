@@ -3,12 +3,26 @@
  */
 package hexlet.code;
 
+import io.javalin.Javalin;
+
 public final class App {
-    public String getGreeting() {
-        return "Hello World!";
+    private App() {
+    }
+
+    public static Javalin getApp() {
+        return Javalin.create(config -> {
+            config.bundledPlugins.enableDevLogging();
+            config.routes.get("/", ctx -> ctx.result("Hello World"));
+        });
     }
 
     public static void main(String[] args) {
-        System.out.println(new App().getGreeting());
+        var app = getApp();
+        app.start(getPort());
+    }
+
+    private static int getPort() {
+        var port = System.getenv().getOrDefault("PORT", "7070");
+        return Integer.parseInt(port);
     }
 }
