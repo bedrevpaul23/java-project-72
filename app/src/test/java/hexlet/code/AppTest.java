@@ -37,6 +37,14 @@ class AppTest {
     }
 
     @Test
+    void environmentPortIsUsed() {
+        var port = System.getenv("PORT");
+        var expectedPort = port == null ? 7070 : Integer.parseInt(port);
+
+        assertEquals(expectedPort, App.getPort());
+    }
+
+    @Test
     void applicationCanBeStarted() {
         var app = App.startApp(0);
 
