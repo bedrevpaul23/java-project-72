@@ -17,12 +17,20 @@ public final class App {
     }
 
     public static void main(String[] args) {
-        var app = getApp();
-        app.start(getPort());
+        startApp(getPort());
     }
 
-    private static int getPort() {
-        var port = System.getenv().getOrDefault("PORT", "7070");
-        return Integer.parseInt(port);
+    static Javalin startApp(int port) {
+        var app = getApp();
+        app.start(port);
+        return app;
+    }
+
+    static int getPort() {
+        return getPort(System.getenv("PORT"));
+    }
+
+    static int getPort(String port) {
+        return port == null ? 7070 : Integer.parseInt(port);
     }
 }

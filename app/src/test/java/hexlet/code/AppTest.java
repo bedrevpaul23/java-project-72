@@ -25,4 +25,25 @@ class AppTest {
             assertEquals("Hello World", response.body().string());
         });
     }
+
+    @Test
+    void defaultPortIsUsed() {
+        assertEquals(7070, App.getPort(null));
+    }
+
+    @Test
+    void portCanBeConfigured() {
+        assertEquals(5000, App.getPort("5000"));
+    }
+
+    @Test
+    void applicationCanBeStarted() {
+        var app = App.startApp(0);
+
+        try {
+            assertNotNull(app);
+        } finally {
+            app.stop();
+        }
+    }
 }
