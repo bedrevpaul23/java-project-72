@@ -3,12 +3,34 @@
  */
 package hexlet.code;
 
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
+
+import org.junit.jupiter.api.Test;
+
 class AppTest {
-    @Test void appHasAGreeting() {
+    @Test
+    void appHasAGreeting() {
         App classUnderTest = new App();
         assertNotNull(classUnderTest.getGreeting(), "app should have a greeting");
+    }
+
+    @Test
+    void mainPrintsGreeting() {
+        var output = new ByteArrayOutputStream();
+        var originalOut = System.out;
+
+        try (var printStream = new PrintStream(output, true, StandardCharsets.UTF_8)) {
+            System.setOut(printStream);
+            App.main(new String[] {});
+        } finally {
+            System.setOut(originalOut);
+        }
+
+        assertEquals("Hello World!" + System.lineSeparator(), output.toString(StandardCharsets.UTF_8));
     }
 }
