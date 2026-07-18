@@ -4,6 +4,7 @@
 package hexlet.code;
 
 import static io.javalin.testtools.JavalinTest.test;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -53,5 +54,11 @@ class AppTest {
         } finally {
             app.stop();
         }
+    }
+
+    @Test
+    void mainStartsApplication() {
+        assertDoesNotThrow(() -> App.main(new String[] {}));
+        App.stopApp();
     }
 }

@@ -6,6 +6,8 @@ package hexlet.code;
 import io.javalin.Javalin;
 
 public final class App {
+    private static Javalin runningApp;
+
     private App() {
     }
 
@@ -17,13 +19,18 @@ public final class App {
     }
 
     public static void main(String[] args) {
-        startApp(getPort());
+        runningApp = startApp(getPort());
     }
 
     static Javalin startApp(int port) {
         var app = getApp();
         app.start(port);
         return app;
+    }
+
+    static void stopApp() {
+        runningApp.stop();
+        runningApp = null;
     }
 
     static int getPort() {
