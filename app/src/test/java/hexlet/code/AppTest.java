@@ -68,6 +68,12 @@ class AppTest {
     }
 
     @Test
+    void databaseDriverCanBeSelected() {
+        assertEquals("org.h2.Driver", App.getDriverClassName("jdbc:h2:mem:test"));
+        assertEquals("org.postgresql.Driver", App.getDriverClassName("jdbc:postgresql://db:5432/postgres"));
+    }
+
+    @Test
     void applicationCanBeStarted() throws Exception {
         var app = App.startApp(0);
 

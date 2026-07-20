@@ -77,7 +77,12 @@ public final class App {
     static HikariDataSource buildDataSource(String jdbcUrl) {
         var hikariConfig = new HikariConfig();
         hikariConfig.setJdbcUrl(jdbcUrl);
+        hikariConfig.setDriverClassName(getDriverClassName(jdbcUrl));
         return new HikariDataSource(hikariConfig);
+    }
+
+    static String getDriverClassName(String jdbcUrl) {
+        return jdbcUrl.startsWith("jdbc:postgresql:") ? "org.postgresql.Driver" : "org.h2.Driver";
     }
 
     private static void executeSql(HikariDataSource dataSource, String sql) throws SQLException {
