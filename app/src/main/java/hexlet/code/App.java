@@ -3,26 +3,41 @@
  */
 package hexlet.code;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.sql.SQLException;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
+
+import hexlet.code.repository.BaseRepository;
 import io.javalin.Javalin;
 
 public final class App {
+    private static final String DEFAULT_DATABASE_URL = "jdbc:h2:mem:project;DB_CLOSE_DELAY=-1;";
     private static Javalin runningApp;
 
     private App() {
     }
 
-    public static Javalin getApp() {
+    public static Javalin getApp() throws SQLException, IOException {
+        initDatabase();
+
         return Javalin.create(config -> {
             config.bundledPlugins.enableDevLogging();
             config.routes.get("/", ctx -> ctx.result("Hello World"));
         });
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws SQLException, IOException {
         runningApp = startApp(getPort());
     }
 
-    static Javalin startApp(int port) {
+    static Javalin startApp(int port) throws SQLException, IOException {
         var app = getApp();
         app.start(port);
         return app;
@@ -39,5 +54,43 @@ public final class App {
 
     static int getPort(String port) {
         return port == null ? 7070 : Integer.parseInt(port);
+    }
+
+    static String getDatabaseUrl() {
+        return getDatabaseUrl(System.getenv("JDBC_DATABASE_URL"));
+    }
+
+    static String getDatabaseUrl(String jdbcDatabaseUrl) {
+        return jdbcDatabaseUrl == null ? DEFAULT_DATABASE_URL : jdbcDatabaseUrl;
+    }
+
+    static void initDatabase() throws SQLException, IOException {
+        initDatabase(getDatabaseUrl());
+    }
+
+    static void initDatabase(String jdbcUrl) throws SQLException, IOException {
+        var dataSource = buildDataSource(jdbcUrl);
+        BaseRepository.dataSource = dataSource;
+        executeSql(dataSource, readResourceFile("schema.sql"));
+    }
+
+    static HikariDataSource buildDataSource(String jdbcUrl) {
+        var hikariConfig = new HikariConfig();
+        hikariConfig.setJdbcUrl(jdbcUrl);
+        return new HikariDataSource(hikariConfig);
+    }
+
+    private static void executeSql(HikariDataSource dataSource, String sql) throws SQLException {
+        try (var connection = dataSource.getConnection();
+                var statement = connection.createStatement()) {
+            statement.execute(sql);
+        }
+    }
+
+    private static String readResourceFile(String fileName) throws IOException {
+        var inputStream = Objects.requireNonNull(App.class.getClassLoader().getResourceAsStream(fileName));
+        try (var reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+            return reader.lines().collect(Collectors.joining("\n"));
+        }
     }
 }

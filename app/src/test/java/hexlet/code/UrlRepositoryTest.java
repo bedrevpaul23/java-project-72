@@ -1,0 +1,56 @@
+package hexlet.code;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import hexlet.code.model.Url;
+import hexlet.code.repository.UrlRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+class UrlRepositoryTest {
+    @BeforeEach
+    void setUp() throws Exception {
+        var databaseUrl = "jdbc:h2:mem:repository_test_" + System.nanoTime() + ";DB_CLOSE_DELAY=-1;";
+        App.initDatabase(databaseUrl);
+    }
+
+    @Test
+    void repositoryReturnsEmptyList() throws Exception {
+        var urls = UrlRepository.getEntities();
+
+        assertTrue(urls.isEmpty());
+    }
+
+    @Test
+    void urlCanBeSavedAndFound() throws Exception {
+        var url = new Url("https://hexlet.io");
+
+        UrlRepository.save(url);
+        var savedUrl = UrlRepository.find(url.getId()).orElseThrow();
+
+        assertNotNull(url.getId());
+        assertNotNull(url.getCreatedAt());
+        assertNotNull(savedUrl.getCreatedAt());
+        assertEquals(url.getId(), savedUrl.getId());
+        assertEquals(url.getName(), savedUrl.getName());
+    }
+
+    @Test
+    void repositoryReturnsSavedEntities() throws Exception {
+        var url = new Url("https://example.com");
+
+        UrlRepository.save(url);
+        var urls = UrlRepository.getEntities();
+
+        assertEquals(1, urls.size());
+        assertEquals(url.getName(), urls.get(0).getName());
+        assertNotNull(urls.get(0).getCreatedAt());
+    }
+
+    @Test
+    void repositoryReturnsEmptyOptionalForMissingEntity() throws Exception {
+        assertTrue(UrlRepository.find(999L).isEmpty());
+    }
+}

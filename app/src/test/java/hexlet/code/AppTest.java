@@ -8,18 +8,21 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
+import hexlet.code.repository.UrlRepository;
 import org.junit.jupiter.api.Test;
 
 class AppTest {
+    private static final String DEFAULT_DATABASE_URL = "jdbc:h2:mem:project;DB_CLOSE_DELAY=-1;";
+
     @Test
-    void appCanBeCreated() {
+    void appCanBeCreated() throws Exception {
         var app = App.getApp();
 
         assertNotNull(app);
     }
 
     @Test
-    void rootRouteReturnsHelloWorld() {
+    void rootRouteReturnsHelloWorld() throws Exception {
         test(App.getApp(), (server, client) -> {
             var response = client.get("/");
             assertEquals(200, response.code());
@@ -46,7 +49,26 @@ class AppTest {
     }
 
     @Test
-    void applicationCanBeStarted() {
+    void defaultDatabaseUrlIsUsed() {
+        assertEquals(DEFAULT_DATABASE_URL, App.getDatabaseUrl(null));
+    }
+
+    @Test
+    void databaseUrlCanBeConfigured() {
+        var databaseUrl = "jdbc:h2:mem:custom;DB_CLOSE_DELAY=-1;";
+
+        assertEquals(databaseUrl, App.getDatabaseUrl(databaseUrl));
+    }
+
+    @Test
+    void databaseCanBeInitialized() throws Exception {
+        App.initDatabase("jdbc:h2:mem:app-test;DB_CLOSE_DELAY=-1;");
+
+        assertEquals(0, UrlRepository.getEntities().size());
+    }
+
+    @Test
+    void applicationCanBeStarted() throws Exception {
         var app = App.startApp(0);
 
         try {

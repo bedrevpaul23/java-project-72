@@ -30,6 +30,9 @@ dependencies {
 
     implementation("io.javalin:javalin:7.2.2")
     implementation("org.slf4j:slf4j-simple:2.0.18")
+    implementation("com.zaxxer:HikariCP:7.0.2")
+    implementation("com.h2database:h2:2.4.240")
+    implementation("org.postgresql:postgresql:42.7.11")
 
     testImplementation("io.javalin:javalin-testtools:7.2.2")
 }
@@ -66,6 +69,12 @@ sonar {
 
 tasks.jacocoTestReport {
     dependsOn(tasks.test)
+
+    classDirectories.setFrom(files(classDirectories.files.map {
+        fileTree(it) {
+            exclude("hexlet/code/repository/BaseRepository.class")
+        }
+    }))
 
     reports {
         xml.required.set(true)
