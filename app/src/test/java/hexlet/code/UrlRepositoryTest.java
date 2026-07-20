@@ -24,6 +24,14 @@ class UrlRepositoryTest {
     }
 
     @Test
+    void repositoryCanBeInstantiated() throws Exception {
+        var constructor = UrlRepository.class.getDeclaredConstructor();
+        constructor.setAccessible(true);
+
+        assertNotNull(constructor.newInstance());
+    }
+
+    @Test
     void urlCanBeSavedAndFound() throws Exception {
         var url = new Url("https://hexlet.io");
 
