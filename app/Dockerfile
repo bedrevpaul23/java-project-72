@@ -5,7 +5,7 @@ COPY . .
 
 RUN ./gradlew clean shadowJar --no-daemon
 
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:21-jdk
 
 WORKDIR /app
 COPY --from=build /app/build/libs/app-1.0-SNAPSHOT-all.jar app.jar
