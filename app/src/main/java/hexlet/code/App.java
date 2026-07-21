@@ -8,14 +8,19 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
+import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
+import gg.jte.ContentType;
+import gg.jte.TemplateEngine;
+import gg.jte.resolve.ResourceCodeResolver;
 import hexlet.code.repository.BaseRepository;
 import io.javalin.Javalin;
+import io.javalin.rendering.template.JavalinJte;
 
 public final class App {
     private static final String DEFAULT_DATABASE_URL = "jdbc:h2:mem:project;DB_CLOSE_DELAY=-1;";
@@ -29,7 +34,8 @@ public final class App {
 
         return Javalin.create(config -> {
             config.bundledPlugins.enableDevLogging();
-            config.routes.get("/", ctx -> ctx.result("Hello World"));
+            config.fileRenderer(new JavalinJte(createTemplateEngine()));
+            config.routes.get("/", ctx -> ctx.render("index.jte", Map.of()));
         });
     }
 
@@ -83,6 +89,12 @@ public final class App {
 
     static String getDriverClassName(String jdbcUrl) {
         return jdbcUrl.startsWith("jdbc:postgresql:") ? "org.postgresql.Driver" : "org.h2.Driver";
+    }
+
+    private static TemplateEngine createTemplateEngine() {
+        ClassLoader classLoader = App.class.getClassLoader();
+        ResourceCodeResolver codeResolver = new ResourceCodeResolver("templates", classLoader);
+        return TemplateEngine.create(codeResolver, ContentType.Html);
     }
 
     private static void executeSql(HikariDataSource dataSource, String sql) throws SQLException {

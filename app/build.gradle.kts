@@ -29,6 +29,8 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     implementation("io.javalin:javalin:7.2.2")
+    implementation("io.javalin:javalin-rendering-jte:7.2.2")
+    implementation("gg.jte:jte:3.2.0")
     implementation("org.slf4j:slf4j-simple:2.0.18")
     implementation("com.zaxxer:HikariCP:7.0.2")
     implementation("com.h2database:h2:2.4.240")

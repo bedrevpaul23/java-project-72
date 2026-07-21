@@ -7,6 +7,7 @@ import static io.javalin.testtools.JavalinTest.test;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import hexlet.code.repository.UrlRepository;
 import org.junit.jupiter.api.Test;
@@ -22,11 +23,16 @@ class AppTest {
     }
 
     @Test
-    void rootRouteReturnsHelloWorld() throws Exception {
+    void rootRouteReturnsMainPage() throws Exception {
         test(App.getApp(), (server, client) -> {
             var response = client.get("/");
+            var body = response.body().string();
+
             assertEquals(200, response.code());
-            assertEquals("Hello World", response.body().string());
+            assertTrue(body.contains("Анализатор страниц"));
+            assertTrue(body.contains("Бесплатно проверяйте сайты на SEO пригодность"));
+            assertTrue(body.contains("action=\"/urls\""));
+            assertTrue(body.contains("https://www.example.com"));
         });
     }
 
