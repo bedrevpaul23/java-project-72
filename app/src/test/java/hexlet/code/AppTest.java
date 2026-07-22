@@ -27,14 +27,14 @@ class AppTest {
 
     @Test
     void appCanBeCreated() throws Exception {
-        var app = App.getApp();
+        var app = getTestApp();
 
         assertNotNull(app);
     }
 
     @Test
     void rootRouteReturnsMainPage() throws Exception {
-        test(App.getApp(), (server, client) -> {
+        test(getTestApp(), (server, client) -> {
             var response = client.get("/");
             var body = response.body().string();
 
@@ -88,6 +88,23 @@ class AppTest {
             assertTrue(body.contains("data-test=\"url\""));
             assertTrue(body.contains("Сайт: https://show.example"));
             assertTrue(body.contains("Дата создания"));
+            assertTrue(body.contains("method=\"post\""));
+            assertTrue(body.contains("action=\"/urls/" + url.getId() + "/checks\""));
+            assertTrue(body.contains("value=\"Запустить проверку\""));
+            assertTrue(body.contains("data-test=\"checks\""));
+            assertTrue(body.contains("<th>Код ответа</th>"));
+            assertTrue(body.contains("<th>h1</th>"));
+            assertTrue(body.contains("<th>title</th>"));
+            assertTrue(body.contains("<th>description</th>"));
+        });
+    }
+
+    @Test
+    void missingUrlReturnsNotFound() throws Exception {
+        test(getTestApp(), (server, client) -> {
+            var response = client.get("/urls/999999");
+
+            assertEquals(404, response.code());
         });
     }
 

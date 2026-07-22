@@ -55,6 +55,7 @@ tasks.named<Test>("test") {
     // Use JUnit Platform for unit tests.
     useJUnitPlatform()
     environment("PORT", "0")
+    environment("JDBC_DATABASE_URL", "jdbc:h2:mem:gradle_test;DB_CLOSE_DELAY=-1;")
 }
 
 
