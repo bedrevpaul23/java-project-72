@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
 import java.net.CookieManager;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -16,14 +17,33 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.TimeUnit;
 
 import hexlet.code.model.Url;
+import hexlet.code.repository.UrlCheckRepository;
 import hexlet.code.repository.UrlRepository;
 import io.javalin.Javalin;
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.MockWebServer;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 class AppTest {
+    private static MockWebServer mockWebServer;
+
     private static final String DEFAULT_DATABASE_URL = "jdbc:h2:mem:project;DB_CLOSE_DELAY=-1;";
+
+    @BeforeAll
+    static void startMockWebServer() throws IOException {
+        mockWebServer = new MockWebServer();
+        mockWebServer.start();
+    }
+
+    @AfterAll
+    static void stopMockWebServer() throws IOException {
+        mockWebServer.shutdown();
+    }
 
     @Test
     void appCanBeCreated() throws Exception {
@@ -92,6 +112,7 @@ class AppTest {
             assertTrue(body.contains("action=\"/urls/" + url.getId() + "/checks\""));
             assertTrue(body.contains("value=\"Запустить проверку\""));
             assertTrue(body.contains("data-test=\"checks\""));
+            assertTrue(body.contains("<h2>Проверки</h2>"));
             assertTrue(body.contains("<th>Код ответа</th>"));
             assertTrue(body.contains("<th>h1</th>"));
             assertTrue(body.contains("<th>title</th>"));
@@ -150,6 +171,75 @@ class AppTest {
             var blankResponse = postForm(client.getOrigin() + "/urls", "");
             assertEquals(422, blankResponse.statusCode());
             assertTrue(blankResponse.body().contains("Некорректный URL"));
+        });
+    }
+
+
+    @Test
+    void urlCheckCanBeCreated() throws Exception {
+        test(getTestApp(), (server, client) -> {
+            var longDescription = "a".repeat(210);
+            var html = "<!doctype html><html><head>"
+                    + "<title>Test title</title>"
+                    + "<meta name=\"description\" content=\"" + longDescription + "\">"
+                    + "</head><body><h1>Main header</h1></body></html>";
+            mockWebServer.enqueue(new MockResponse()
+                    .setResponseCode(200)
+                    .setBody(html)
+                    .addHeader("Content-Type", "text/html; charset=utf-8"));
+
+            postForm(client.getOrigin() + "/urls", mockWebServer.url("/").toString());
+            var url = UrlRepository.getEntities().get(0);
+            var response = postEmpty(client.getOrigin() + "/urls/" + url.getId() + "/checks");
+            var body = response.body();
+            var request = mockWebServer.takeRequest(1, TimeUnit.SECONDS);
+
+            assertEquals(200, response.statusCode());
+            assertNotNull(request);
+            assertEquals("/", request.getPath());
+            assertTrue(body.contains("Страница успешно проверена"));
+            assertTrue(body.contains("data-test=\"checks\""));
+            assertTrue(body.contains("<td>200</td>"));
+            assertTrue(body.contains("Main header"));
+            assertTrue(body.contains("Test title"));
+            assertTrue(body.contains("a".repeat(197) + "..."));
+            assertEquals(1, UrlCheckRepository.findByUrlId(url.getId()).size());
+
+            var urlsResponse = client.get("/urls");
+            var urlsBody = urlsResponse.body().string();
+
+            assertEquals(200, urlsResponse.code());
+            assertTrue(urlsBody.contains("Последняя проверка"));
+            assertTrue(urlsBody.matches("(?s).*<td>\\s*200\\s*</td>.*"));
+        });
+    }
+
+    @Test
+    void urlCheckFailureDoesNotCreateRecord() throws Exception {
+        test(getTestApp(), (server, client) -> {
+            mockWebServer.enqueue(new MockResponse()
+                    .setResponseCode(500)
+                    .setBody("Server error"));
+
+            postForm(client.getOrigin() + "/urls", mockWebServer.url("/").toString());
+            var url = UrlRepository.getEntities().get(0);
+            var response = postEmpty(client.getOrigin() + "/urls/" + url.getId() + "/checks");
+            var body = response.body();
+            var request = mockWebServer.takeRequest(1, TimeUnit.SECONDS);
+
+            assertEquals(200, response.statusCode());
+            assertNotNull(request);
+            assertTrue(body.contains("Произошла ошибка при проверке"));
+            assertTrue(UrlCheckRepository.findByUrlId(url.getId()).isEmpty());
+        });
+    }
+
+    @Test
+    void missingUrlCheckReturnsNotFound() throws Exception {
+        test(getTestApp(), (server, client) -> {
+            var response = client.post("/urls/999999/checks");
+
+            assertEquals(404, response.code());
         });
     }
 
@@ -216,6 +306,20 @@ class AppTest {
     private static Javalin getTestApp() throws Exception {
         var databaseUrl = "jdbc:h2:mem:app_test_" + System.nanoTime() + ";DB_CLOSE_DELAY=-1;";
         return App.getApp(databaseUrl);
+    }
+
+    private static HttpResponse<String> postEmpty(String url) throws Exception {
+        var request = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build();
+
+        var client = HttpClient.newBuilder()
+                .cookieHandler(new CookieManager())
+                .followRedirects(HttpClient.Redirect.ALWAYS)
+                .build();
+
+        return client.send(request, HttpResponse.BodyHandlers.ofString());
     }
 
     private static HttpResponse<String> postForm(String url, String value) throws Exception {

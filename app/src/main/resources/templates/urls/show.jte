@@ -1,6 +1,9 @@
+@import java.util.List
 @import hexlet.code.model.Url
+@import hexlet.code.model.UrlCheck
 
 @param Url url
+@param List<UrlCheck> checks
 @param String flash
 @param String flashClass
 
@@ -25,8 +28,10 @@ content = @`
   </tbody>
 </table>
 
+<h2>Проверки</h2>
+
 <form method="post" action="${"/urls/" + url.getId() + "/checks"}">
-  <input type="submit" value="Запустить проверку">
+  <input class="btn btn-primary" type="submit" value="Запустить проверку">
 </form>
 
 <table class="table table-bordered table-hover" data-test="checks">
@@ -41,6 +46,16 @@ content = @`
     </tr>
   </thead>
   <tbody>
+    @for (UrlCheck check : checks)
+      <tr>
+        <td>${check.getId()}</td>
+        <td>${check.getStatusCode()}</td>
+        <td>${check.getH1ForDisplay()}</td>
+        <td>${check.getTitleForDisplay()}</td>
+        <td>${check.getDescriptionForDisplay()}</td>
+        <td>${check.getCreatedAtAsDate()}</td>
+      </tr>
+    @endfor
   </tbody>
 </table>
 `,

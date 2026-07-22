@@ -35,8 +35,12 @@ dependencies {
     implementation("com.zaxxer:HikariCP:7.0.2")
     implementation("com.h2database:h2:2.4.240")
     implementation("org.postgresql:postgresql:42.7.11")
+    implementation(platform("com.konghq:unirest-java-bom:4.5.1"))
+    implementation("com.konghq:unirest-java-core")
+    implementation("org.jsoup:jsoup:1.22.2")
 
     testImplementation("io.javalin:javalin-testtools:7.2.2")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }
 
 // Apply a specific Java toolchain to ease working on different environments.

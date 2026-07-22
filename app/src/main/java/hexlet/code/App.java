@@ -23,12 +23,16 @@ import gg.jte.ContentType;
 import gg.jte.TemplateEngine;
 import gg.jte.resolve.ResourceCodeResolver;
 import hexlet.code.model.Url;
+import hexlet.code.model.UrlCheck;
 import hexlet.code.repository.BaseRepository;
+import hexlet.code.repository.UrlCheckRepository;
 import hexlet.code.repository.UrlRepository;
 import io.javalin.Javalin;
 import io.javalin.http.Context;
 import io.javalin.http.NotFoundResponse;
 import io.javalin.rendering.template.JavalinJte;
+import kong.unirest.core.Unirest;
+import org.jsoup.Jsoup;
 
 public final class App {
     private static final String DEFAULT_DATABASE_URL = "jdbc:h2:mem:project;DB_CLOSE_DELAY=-1;";
@@ -51,6 +55,7 @@ public final class App {
             config.routes.post("/urls", App::createUrl);
             config.routes.get("/urls", App::indexUrls);
             config.routes.get("/urls/{id}", App::showUrl);
+            config.routes.post("/urls/{id}/checks", App::createUrlCheck);
         });
     }
 
@@ -153,8 +158,22 @@ public final class App {
     }
 
     private static void indexUrls(Context ctx) throws SQLException {
+        var urls = UrlRepository.getEntities();
+        var latestCheckDates = new HashMap<Long, String>();
+        var latestCheckStatusCodes = new HashMap<Long, String>();
+
+        for (var url : urls) {
+            var latestCheck = UrlCheckRepository.findLatestByUrlId(url.getId());
+            latestCheck.ifPresent(check -> {
+                latestCheckDates.put(url.getId(), check.getCreatedAtAsDate());
+                latestCheckStatusCodes.put(url.getId(), String.valueOf(check.getStatusCode()));
+            });
+        }
+
         var pageData = getPageData(ctx);
-        pageData.put("urls", UrlRepository.getEntities());
+        pageData.put("urls", urls);
+        pageData.put("latestCheckDates", latestCheckDates);
+        pageData.put("latestCheckStatusCodes", latestCheckStatusCodes);
         ctx.render("urls/index.jte", pageData);
     }
 
@@ -165,7 +184,41 @@ public final class App {
 
         var pageData = getPageData(ctx);
         pageData.put("url", url);
+        pageData.put("checks", UrlCheckRepository.findByUrlId(id));
         ctx.render("urls/show.jte", pageData);
+    }
+
+    private static void createUrlCheck(Context ctx) throws SQLException {
+        var id = Long.valueOf(ctx.pathParam("id"));
+        var url = UrlRepository.find(id)
+                .orElseThrow(() -> new NotFoundResponse("Url not found"));
+
+        try {
+            var urlCheck = checkUrl(url);
+            UrlCheckRepository.save(urlCheck);
+            setFlash(ctx, "Страница успешно проверена", "alert alert-success");
+        } catch (RuntimeException exception) {
+            setFlash(ctx, "Произошла ошибка при проверке", "alert alert-danger");
+        }
+
+        ctx.redirect("/urls/" + id);
+    }
+
+    private static UrlCheck checkUrl(Url url) {
+        var response = Unirest.get(url.getName()).asString();
+
+        if (response.getStatus() >= 400) {
+            throw new IllegalStateException("URL check failed with status " + response.getStatus());
+        }
+
+        var body = response.getBody() == null ? "" : response.getBody();
+        var document = Jsoup.parse(body);
+        var h1Element = document.selectFirst("h1");
+        var h1 = h1Element == null ? "" : h1Element.text();
+        var descriptionElement = document.selectFirst("meta[name=description]");
+        var description = descriptionElement == null ? "" : descriptionElement.attr("content");
+
+        return new UrlCheck(url.getId(), response.getStatus(), h1, document.title(), description);
     }
 
     private static Map<String, Object> getPageData(Context ctx) {
@@ -196,7 +249,12 @@ public final class App {
     private static void executeSql(HikariDataSource dataSource, String sql) throws SQLException {
         try (var connection = dataSource.getConnection();
                 var statement = connection.createStatement()) {
-            statement.execute(sql);
+            for (var sqlStatement : sql.split(";")) {
+                var trimmedSqlStatement = sqlStatement.trim();
+                if (!trimmedSqlStatement.isEmpty()) {
+                    statement.execute(trimmedSqlStatement);
+                }
+            }
         }
     }
 
