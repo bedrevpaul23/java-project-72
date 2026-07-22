@@ -7,6 +7,7 @@ import static io.javalin.testtools.JavalinTest.test;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -19,6 +20,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
+import com.zaxxer.hikari.HikariDataSource;
 import hexlet.code.model.Url;
 import hexlet.code.repository.UrlCheckRepository;
 import hexlet.code.repository.UrlRepository;
@@ -76,6 +78,9 @@ class AppTest {
                 "https://some-domain.org:8080",
                 App.normalizeUrl("https://some-domain.org:8080/example/path")
         );
+        assertThrows(Exception.class, () -> App.normalizeUrl(null));
+        assertThrows(Exception.class, () -> App.normalizeUrl("   "));
+        assertThrows(Exception.class, () -> App.normalizeUrl("file:///tmp/index.html"));
     }
 
     @Test
@@ -235,6 +240,28 @@ class AppTest {
     }
 
     @Test
+    void urlCheckCanBeCreatedWithoutSeoTags() throws Exception {
+        test(getTestApp(), (server, client) -> {
+            mockWebServer.enqueue(new MockResponse()
+                    .setResponseCode(200)
+                    .setBody("<!doctype html><html><head></head><body></body></html>")
+                    .addHeader("Content-Type", "text/html; charset=utf-8"));
+
+            postForm(client.getOrigin() + "/urls", mockWebServer.url("/").toString());
+            var url = UrlRepository.getEntities().get(0);
+            var response = postEmpty(client.getOrigin() + "/urls/" + url.getId() + "/checks");
+            var request = mockWebServer.takeRequest(1, TimeUnit.SECONDS);
+            var check = UrlCheckRepository.findByUrlId(url.getId()).get(0);
+
+            assertEquals(200, response.statusCode());
+            assertNotNull(request);
+            assertEquals("", check.getH1());
+            assertEquals("", check.getTitle());
+            assertEquals("", check.getDescription());
+        });
+    }
+
+    @Test
     void missingUrlCheckReturnsNotFound() throws Exception {
         test(getTestApp(), (server, client) -> {
             var response = client.post("/urls/999999/checks");
@@ -264,7 +291,11 @@ class AppTest {
 
     @Test
     void defaultDatabaseUrlIsUsed() {
+        var databaseUrl = System.getenv("JDBC_DATABASE_URL");
+        var expectedDatabaseUrl = databaseUrl == null ? DEFAULT_DATABASE_URL : databaseUrl;
+
         assertEquals(DEFAULT_DATABASE_URL, App.getDatabaseUrl(null));
+        assertEquals(expectedDatabaseUrl, App.getDatabaseUrl());
     }
 
     @Test
@@ -276,6 +307,7 @@ class AppTest {
 
     @Test
     void databaseCanBeInitialized() throws Exception {
+        App.initDatabase();
         App.initDatabase("jdbc:h2:mem:app-test;DB_CLOSE_DELAY=-1;");
 
         assertEquals(0, UrlRepository.getEntities().size());
@@ -285,6 +317,19 @@ class AppTest {
     void databaseDriverCanBeSelected() {
         assertEquals("org.h2.Driver", App.getDriverClassName("jdbc:h2:mem:test"));
         assertEquals("org.postgresql.Driver", App.getDriverClassName("jdbc:postgresql://db:5432/postgres"));
+    }
+
+    @Test
+    void sqlExecutorSkipsBlankStatements() throws Exception {
+        var dataSource = App.buildDataSource("jdbc:h2:mem:blank-sql-test;DB_CLOSE_DELAY=-1;");
+        var method = App.class.getDeclaredMethod("executeSql", HikariDataSource.class, String.class);
+        method.setAccessible(true);
+
+        try {
+            assertDoesNotThrow(() -> method.invoke(null, dataSource, " ; CREATE TABLE test_table (id INT); ; "));
+        } finally {
+            dataSource.close();
+        }
     }
 
     @Test

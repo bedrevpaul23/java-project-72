@@ -32,4 +32,13 @@ class UrlCheckTest {
         assertEquals(200, urlCheck.getTitleForDisplay().length());
         assertEquals("a".repeat(197) + "...", urlCheck.getTitleForDisplay());
     }
+
+    @Test
+    void nullValuesAreRenderedAsEmptyStrings() {
+        var urlCheck = new UrlCheck(1L, 200, null, null, null);
+
+        assertEquals("", urlCheck.getH1ForDisplay());
+        assertEquals("", urlCheck.getTitleForDisplay());
+        assertEquals("", urlCheck.getDescriptionForDisplay());
+    }
 }

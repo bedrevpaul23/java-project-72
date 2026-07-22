@@ -120,7 +120,7 @@ public final class App {
         var protocol = parsedUrl.getProtocol();
         var host = parsedUrl.getHost();
 
-        if (protocol == null || host == null || host.isBlank()) {
+        if (Objects.toString(host, "").isBlank()) {
             throw new MalformedURLException("Invalid URL");
         }
 
@@ -211,7 +211,7 @@ public final class App {
             throw new IllegalStateException("URL check failed with status " + response.getStatus());
         }
 
-        var body = response.getBody() == null ? "" : response.getBody();
+        var body = Objects.toString(response.getBody(), "");
         var document = Jsoup.parse(body);
         var h1Element = document.selectFirst("h1");
         var h1 = h1Element == null ? "" : h1Element.text();
