@@ -46,19 +46,38 @@ class UrlRepositoryTest {
     }
 
     @Test
-    void repositoryReturnsSavedEntities() throws Exception {
+    void urlCanBeFoundByName() throws Exception {
         var url = new Url("https://example.com");
 
         UrlRepository.save(url);
+        var savedUrl = UrlRepository.findByName(url.getName()).orElseThrow();
+
+        assertEquals(url.getId(), savedUrl.getId());
+        assertEquals(url.getName(), savedUrl.getName());
+    }
+
+    @Test
+    void repositoryReturnsSavedEntitiesNewestFirst() throws Exception {
+        var firstUrl = new Url("https://first.example");
+        var secondUrl = new Url("https://second.example");
+
+        UrlRepository.save(firstUrl);
+        UrlRepository.save(secondUrl);
         var urls = UrlRepository.getEntities();
 
-        assertEquals(1, urls.size());
-        assertEquals(url.getName(), urls.get(0).getName());
+        assertEquals(2, urls.size());
+        assertEquals(secondUrl.getName(), urls.get(0).getName());
+        assertEquals(firstUrl.getName(), urls.get(1).getName());
         assertNotNull(urls.get(0).getCreatedAt());
     }
 
     @Test
     void repositoryReturnsEmptyOptionalForMissingEntity() throws Exception {
         assertTrue(UrlRepository.find(999L).isEmpty());
+    }
+
+    @Test
+    void repositoryReturnsEmptyOptionalForMissingName() throws Exception {
+        assertTrue(UrlRepository.findByName("https://missing.example").isEmpty());
     }
 }

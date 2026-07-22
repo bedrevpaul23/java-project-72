@@ -9,7 +9,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.net.CookieManager;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+
+import hexlet.code.model.Url;
 import hexlet.code.repository.UrlRepository;
+import io.javalin.Javalin;
 import org.junit.jupiter.api.Test;
 
 class AppTest {
@@ -35,6 +45,97 @@ class AppTest {
             assertTrue(body.contains("https://www.example.com"));
         });
     }
+
+    @Test
+    void urlCanBeNormalized() throws Exception {
+        assertEquals(
+                "https://some-domain.org",
+                App.normalizeUrl("https://some-domain.org/example/path")
+        );
+        assertEquals(
+                "https://some-domain.org:8080",
+                App.normalizeUrl("https://some-domain.org:8080/example/path")
+        );
+    }
+
+    @Test
+    void urlsCanBeRendered() throws Exception {
+        test(getTestApp(), (server, client) -> {
+            UrlRepository.save(new Url("https://first.example"));
+            UrlRepository.save(new Url("https://second.example"));
+
+            var response = client.get("/urls");
+            var body = response.body().string();
+
+            assertEquals(200, response.code());
+            assertTrue(body.contains("data-test=\"urls\""));
+            assertTrue(body.contains("https://first.example"));
+            assertTrue(body.contains("https://second.example"));
+            assertTrue(body.indexOf("https://second.example") < body.indexOf("https://first.example"));
+        });
+    }
+
+    @Test
+    void urlCanBeRendered() throws Exception {
+        test(getTestApp(), (server, client) -> {
+            var url = new Url("https://show.example");
+            UrlRepository.save(url);
+
+            var response = client.get("/urls/" + url.getId());
+            var body = response.body().string();
+
+            assertEquals(200, response.code());
+            assertTrue(body.contains("data-test=\"url\""));
+            assertTrue(body.contains("Сайт: https://show.example"));
+            assertTrue(body.contains("Дата создания"));
+        });
+    }
+
+
+    @Test
+    void urlCanBeAdded() throws Exception {
+        test(getTestApp(), (server, client) -> {
+            var response = postForm(client.getOrigin() + "/urls", "https://example.com/some/path");
+            var body = response.body();
+
+            assertEquals(200, response.statusCode());
+            assertTrue(body.contains("https://example.com"));
+            assertTrue(body.contains("Страница успешно добавлена"));
+            assertEquals(1, UrlRepository.getEntities().size());
+            assertEquals("https://example.com", UrlRepository.getEntities().get(0).getName());
+        });
+    }
+
+    @Test
+    void existingUrlIsNotDuplicated() throws Exception {
+        test(getTestApp(), (server, client) -> {
+            postForm(client.getOrigin() + "/urls", "https://duplicate.example/path");
+            var response = postForm(client.getOrigin() + "/urls", "https://duplicate.example/another-path");
+            var body = response.body();
+
+            assertEquals(200, response.statusCode());
+            assertTrue(body.contains("https://duplicate.example"));
+            assertTrue(body.contains("Страница уже существует"));
+            assertEquals(1, UrlRepository.getEntities().size());
+        });
+    }
+
+    @Test
+    void invalidUrlReturnsUnprocessableEntity() throws Exception {
+        test(getTestApp(), (server, client) -> {
+            var response = postForm(client.getOrigin() + "/urls", "invalid-url");
+            var body = response.body();
+
+            assertEquals(422, response.statusCode());
+            assertTrue(body.contains("Анализатор страниц"));
+            assertTrue(body.contains("Некорректный URL"));
+
+            var blankResponse = postForm(client.getOrigin() + "/urls", "");
+            assertEquals(422, blankResponse.statusCode());
+            assertTrue(blankResponse.body().contains("Некорректный URL"));
+        });
+    }
+
 
     @Test
     void defaultPortIsUsed() {
@@ -95,4 +196,25 @@ class AppTest {
         assertDoesNotThrow(() -> App.main(new String[] {}));
         App.stopApp();
     }
+    private static Javalin getTestApp() throws Exception {
+        var databaseUrl = "jdbc:h2:mem:app_test_" + System.nanoTime() + ";DB_CLOSE_DELAY=-1;";
+        return App.getApp(databaseUrl);
+    }
+
+    private static HttpResponse<String> postForm(String url, String value) throws Exception {
+        var encodedValue = URLEncoder.encode(value, StandardCharsets.UTF_8);
+        var request = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .POST(HttpRequest.BodyPublishers.ofString("url=" + encodedValue))
+                .build();
+
+        var client = HttpClient.newBuilder()
+                .cookieHandler(new CookieManager())
+                .followRedirects(HttpClient.Redirect.ALWAYS)
+                .build();
+
+        return client.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
 }

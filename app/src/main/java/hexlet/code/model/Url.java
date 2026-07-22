@@ -34,4 +34,8 @@ public final class Url {
     public void setCreatedAt(LocalDateTime newCreatedAt) {
         createdAt = newCreatedAt;
     }
+
+    public String getCreatedAtAsDate() {
+        return createdAt.toLocalDate().toString();
+    }
 }

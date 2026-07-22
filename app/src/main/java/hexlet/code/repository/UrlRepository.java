@@ -26,10 +26,12 @@ public final class UrlRepository extends BaseRepository {
             preparedStatement.executeUpdate();
 
             var generatedKeys = preparedStatement.getGeneratedKeys();
-            generatedKeys.next();
-
-            url.setId(generatedKeys.getLong(1));
-            url.setCreatedAt(createdAt);
+            if (generatedKeys.next()) {
+                url.setId(generatedKeys.getLong(1));
+                url.setCreatedAt(createdAt);
+            } else {
+                throw new SQLException("DB has not returned an id after saving an entity");
+            }
         }
     }
 
@@ -48,8 +50,23 @@ public final class UrlRepository extends BaseRepository {
         }
     }
 
+    public static Optional<Url> findByName(String name) throws SQLException {
+        var sql = "SELECT * FROM urls WHERE name = ?";
+        try (var connection = dataSource.getConnection();
+                var preparedStatement = connection.prepareStatement(sql)) {
+            preparedStatement.setString(1, name);
+
+            var resultSet = preparedStatement.executeQuery();
+            if (resultSet.next()) {
+                return Optional.of(buildUrl(resultSet));
+            }
+
+            return Optional.empty();
+        }
+    }
+
     public static List<Url> getEntities() throws SQLException {
-        var sql = "SELECT * FROM urls ORDER BY id";
+        var sql = "SELECT * FROM urls ORDER BY created_at DESC, id DESC";
         try (var connection = dataSource.getConnection();
                 var preparedStatement = connection.prepareStatement(sql)) {
             var resultSet = preparedStatement.executeQuery();

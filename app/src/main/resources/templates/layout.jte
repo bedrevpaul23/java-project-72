@@ -1,11 +1,13 @@
 @import gg.jte.Content
 
 @param Content content
+@param String flash
+@param String flashClass
 
 <!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Анализатор страниц</title>
   <link
@@ -23,12 +25,14 @@
     </div>
   </nav>
   <main class="container flex-grow-1 py-3">
-    <div class="my-3"></div>
+    @if (flash != null)
+      <div class="${flashClass}" role="alert">${flash}</div>
+    @endif
     ${content}
   </main>
-  <footer class="border-top py-3">
-    <div class="container text-center">
-      <a href="https://ru.hexlet.io/">Hexlet</a>
+  <footer class="border-top py-3 mt-5">
+    <div class="container text-muted">
+      Hexlet
     </div>
   </footer>
 </body>

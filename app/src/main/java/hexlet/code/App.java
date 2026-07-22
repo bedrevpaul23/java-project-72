@@ -6,8 +6,12 @@ package hexlet.code;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -18,8 +22,12 @@ import com.zaxxer.hikari.HikariDataSource;
 import gg.jte.ContentType;
 import gg.jte.TemplateEngine;
 import gg.jte.resolve.ResourceCodeResolver;
+import hexlet.code.model.Url;
 import hexlet.code.repository.BaseRepository;
+import hexlet.code.repository.UrlRepository;
 import io.javalin.Javalin;
+import io.javalin.http.Context;
+import io.javalin.http.NotFoundResponse;
 import io.javalin.rendering.template.JavalinJte;
 
 public final class App {
@@ -30,12 +38,19 @@ public final class App {
     }
 
     public static Javalin getApp() throws SQLException, IOException {
-        initDatabase();
+        return getApp(getDatabaseUrl());
+    }
+
+    static Javalin getApp(String jdbcUrl) throws SQLException, IOException {
+        initDatabase(jdbcUrl);
 
         return Javalin.create(config -> {
             config.bundledPlugins.enableDevLogging();
             config.fileRenderer(new JavalinJte(createTemplateEngine()));
-            config.routes.get("/", ctx -> ctx.render("index.jte", Map.of()));
+            config.routes.get("/", ctx -> ctx.render("index.jte", getPageData(ctx)));
+            config.routes.post("/urls", App::createUrl);
+            config.routes.get("/urls", App::indexUrls);
+            config.routes.get("/urls/{id}", App::showUrl);
         });
     }
 
@@ -89,6 +104,87 @@ public final class App {
 
     static String getDriverClassName(String jdbcUrl) {
         return jdbcUrl.startsWith("jdbc:postgresql:") ? "org.postgresql.Driver" : "org.h2.Driver";
+    }
+
+    static String normalizeUrl(String input) throws URISyntaxException, MalformedURLException {
+        if (input == null || input.isBlank()) {
+            throw new MalformedURLException("Invalid URL");
+        }
+
+        var parsedUrl = new URI(input.trim()).toURL();
+        var protocol = parsedUrl.getProtocol();
+        var host = parsedUrl.getHost();
+
+        if (protocol == null || host == null || host.isBlank()) {
+            throw new MalformedURLException("Invalid URL");
+        }
+
+        var result = protocol + "://" + host;
+        var port = parsedUrl.getPort();
+
+        return port == -1 ? result : result + ":" + port;
+    }
+
+    private static void createUrl(Context ctx) throws SQLException {
+        String normalizedName;
+
+        try {
+            normalizedName = normalizeUrl(ctx.formParam("url"));
+        } catch (IllegalArgumentException | MalformedURLException | URISyntaxException exception) {
+            ctx.status(422).render(
+                    "index.jte",
+                    getPageData("Некорректный URL", "alert alert-danger")
+            );
+            return;
+        }
+
+        var existingUrl = UrlRepository.findByName(normalizedName);
+        if (existingUrl.isPresent()) {
+            var url = existingUrl.get();
+            setFlash(ctx, "Страница уже существует", "alert alert-info");
+            ctx.redirect("/urls/" + url.getId());
+            return;
+        }
+
+        var url = new Url(normalizedName);
+        UrlRepository.save(url);
+        setFlash(ctx, "Страница успешно добавлена", "alert alert-success");
+        ctx.redirect("/urls/" + url.getId());
+    }
+
+    private static void indexUrls(Context ctx) throws SQLException {
+        var pageData = getPageData(ctx);
+        pageData.put("urls", UrlRepository.getEntities());
+        ctx.render("urls/index.jte", pageData);
+    }
+
+    private static void showUrl(Context ctx) throws SQLException {
+        var id = Long.valueOf(ctx.pathParam("id"));
+        var url = UrlRepository.find(id)
+                .orElseThrow(() -> new NotFoundResponse("Url not found"));
+
+        var pageData = getPageData(ctx);
+        pageData.put("url", url);
+        ctx.render("urls/show.jte", pageData);
+    }
+
+    private static Map<String, Object> getPageData(Context ctx) {
+        var pageData = new HashMap<String, Object>();
+        pageData.put("flash", ctx.consumeSessionAttribute("flash"));
+        pageData.put("flashClass", ctx.consumeSessionAttribute("flashClass"));
+        return pageData;
+    }
+
+    private static Map<String, Object> getPageData(String flash, String flashClass) {
+        var pageData = new HashMap<String, Object>();
+        pageData.put("flash", flash);
+        pageData.put("flashClass", flashClass);
+        return pageData;
+    }
+
+    private static void setFlash(Context ctx, String flash, String flashClass) {
+        ctx.sessionAttribute("flash", flash);
+        ctx.sessionAttribute("flashClass", flashClass);
     }
 
     private static TemplateEngine createTemplateEngine() {
