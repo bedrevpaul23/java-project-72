@@ -79,7 +79,7 @@ tasks.jacocoTestReport {
 
     classDirectories.setFrom(files(classDirectories.files.map {
         fileTree(it) {
-            exclude("hexlet/code/repository/*.class")
+            exclude("hexlet/code/repository/BaseRepository.class")
         }
     }))
 
