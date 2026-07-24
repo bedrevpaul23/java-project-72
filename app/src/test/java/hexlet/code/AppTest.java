@@ -95,7 +95,16 @@ class AppTest {
         );
         assertThrows(Exception.class, () -> UrlController.normalizeUrl(null));
         assertThrows(Exception.class, () -> UrlController.normalizeUrl("   "));
-        assertThrows(Exception.class, () -> UrlController.normalizeUrl("file:///tmp/index.html"));
+        assertThrows(
+                Exception.class,
+                () -> UrlController.normalizeUrl("file:///tmp/index.html")
+        );
+        assertThrows(
+                Exception.class,
+                () -> UrlController.normalizeUrl(
+                        "httpsss://abcabca@test.ru"
+                )
+        );
     }
 
     @Test

@@ -165,7 +165,10 @@ public final class UrlController {
         var scheme = parsedUrl.getScheme();
         var host = parsedUrl.getHost();
 
-        if (Objects.toString(scheme, "").isBlank()
+        var isSupportedScheme = "http".equalsIgnoreCase(scheme)
+                || "https".equalsIgnoreCase(scheme);
+
+        if (!isSupportedScheme
                 || Objects.toString(host, "").isBlank()) {
             return null;
         }
