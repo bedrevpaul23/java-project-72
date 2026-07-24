@@ -28,7 +28,7 @@ class UrlCheckTest {
         assertEquals(longText, urlCheck.getTitle());
         assertEquals("New description", urlCheck.getDescription());
         assertEquals(createdAt, urlCheck.getCreatedAt());
-        assertEquals("2026-02-20", urlCheck.getCreatedAtAsDate());
+        assertEquals("2026-02-20 10:15", urlCheck.getCreatedAtAsDate());
         assertEquals(200, urlCheck.getTitleForDisplay().length());
         assertEquals("a".repeat(197) + "...", urlCheck.getTitleForDisplay());
     }

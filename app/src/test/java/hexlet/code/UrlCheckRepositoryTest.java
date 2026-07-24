@@ -61,6 +61,54 @@ class UrlCheckRepositoryTest {
     }
 
     @Test
+    void latestChecksCanBeFoundWithSingleQuery() throws Exception {
+        var firstUrl = new Url("https://first-latest.example");
+        var secondUrl = new Url("https://second-latest.example");
+        UrlRepository.save(firstUrl);
+        UrlRepository.save(secondUrl);
+
+        UrlCheckRepository.save(
+                new UrlCheck(
+                        firstUrl.getId(),
+                        200,
+                        "First",
+                        "First",
+                        "First"
+                )
+        );
+        UrlCheckRepository.save(
+                new UrlCheck(
+                        firstUrl.getId(),
+                        201,
+                        "Latest",
+                        "Latest",
+                        "Latest"
+                )
+        );
+        UrlCheckRepository.save(
+                new UrlCheck(
+                        secondUrl.getId(),
+                        204,
+                        "",
+                        "",
+                        ""
+                )
+        );
+
+        var latestChecks = UrlCheckRepository.findLatestChecks();
+
+        assertEquals(2, latestChecks.size());
+        assertEquals(
+                201,
+                latestChecks.get(firstUrl.getId()).getStatusCode()
+        );
+        assertEquals(
+                204,
+                latestChecks.get(secondUrl.getId()).getStatusCode()
+        );
+    }
+
+    @Test
     void repositoryReturnsEmptyResultsForMissingUrl() throws Exception {
         assertTrue(UrlCheckRepository.findByUrlId(999L).isEmpty());
         assertTrue(UrlCheckRepository.findLatestByUrlId(999L).isEmpty());

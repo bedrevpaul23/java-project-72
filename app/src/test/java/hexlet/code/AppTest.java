@@ -21,42 +21,57 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
 
 import com.zaxxer.hikari.HikariDataSource;
+import hexlet.code.controller.UrlController;
 import hexlet.code.model.Url;
+import hexlet.code.repository.BaseRepository;
 import hexlet.code.repository.UrlCheckRepository;
 import hexlet.code.repository.UrlRepository;
 import io.javalin.Javalin;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class AppTest {
-    private static MockWebServer mockWebServer;
+    private MockWebServer mockWebServer;
+    private Javalin app;
+    private HikariDataSource testDataSource;
 
     private static final String DEFAULT_DATABASE_URL = "jdbc:h2:mem:project;DB_CLOSE_DELAY=-1;";
 
-    @BeforeAll
-    static void startMockWebServer() throws IOException {
+    @BeforeEach
+    void setUp() throws Exception {
         mockWebServer = new MockWebServer();
         mockWebServer.start();
+
+        app = App.getApp(
+                "jdbc:h2:mem:app_test_" + System.nanoTime()
+                        + ";DB_CLOSE_DELAY=-1;"
+        );
+        testDataSource = BaseRepository.dataSource;
+
+        try (var connection = testDataSource.getConnection();
+                var statement = connection.createStatement()) {
+            statement.executeUpdate("DELETE FROM url_checks");
+            statement.executeUpdate("DELETE FROM urls");
+        }
     }
 
-    @AfterAll
-    static void stopMockWebServer() throws IOException {
+    @AfterEach
+    void tearDown() throws IOException {
         mockWebServer.shutdown();
+        testDataSource.close();
     }
 
     @Test
     void appCanBeCreated() throws Exception {
-        var app = getTestApp();
-
         assertNotNull(app);
     }
 
     @Test
     void rootRouteReturnsMainPage() throws Exception {
-        test(getTestApp(), (server, client) -> {
+        test(app, (server, client) -> {
             var response = client.get("/");
             var body = response.body().string();
 
@@ -72,20 +87,20 @@ class AppTest {
     void urlCanBeNormalized() throws Exception {
         assertEquals(
                 "https://some-domain.org",
-                App.normalizeUrl("https://some-domain.org/example/path")
+                UrlController.normalizeUrl("https://some-domain.org/example/path")
         );
         assertEquals(
                 "https://some-domain.org:8080",
-                App.normalizeUrl("https://some-domain.org:8080/example/path")
+                UrlController.normalizeUrl("https://some-domain.org:8080/example/path")
         );
-        assertThrows(Exception.class, () -> App.normalizeUrl(null));
-        assertThrows(Exception.class, () -> App.normalizeUrl("   "));
-        assertThrows(Exception.class, () -> App.normalizeUrl("file:///tmp/index.html"));
+        assertThrows(Exception.class, () -> UrlController.normalizeUrl(null));
+        assertThrows(Exception.class, () -> UrlController.normalizeUrl("   "));
+        assertThrows(Exception.class, () -> UrlController.normalizeUrl("file:///tmp/index.html"));
     }
 
     @Test
     void urlsCanBeRendered() throws Exception {
-        test(getTestApp(), (server, client) -> {
+        test(app, (server, client) -> {
             UrlRepository.save(new Url("https://first.example"));
             UrlRepository.save(new Url("https://second.example"));
 
@@ -102,7 +117,7 @@ class AppTest {
 
     @Test
     void urlCanBeRendered() throws Exception {
-        test(getTestApp(), (server, client) -> {
+        test(app, (server, client) -> {
             var url = new Url("https://show.example");
             UrlRepository.save(url);
 
@@ -127,7 +142,7 @@ class AppTest {
 
     @Test
     void missingUrlReturnsNotFound() throws Exception {
-        test(getTestApp(), (server, client) -> {
+        test(app, (server, client) -> {
             var response = client.get("/urls/999999");
 
             assertEquals(404, response.code());
@@ -137,7 +152,7 @@ class AppTest {
 
     @Test
     void urlCanBeAdded() throws Exception {
-        test(getTestApp(), (server, client) -> {
+        test(app, (server, client) -> {
             var response = postForm(client.getOrigin() + "/urls", "https://example.com/some/path");
             var body = response.body();
 
@@ -151,7 +166,7 @@ class AppTest {
 
     @Test
     void existingUrlIsNotDuplicated() throws Exception {
-        test(getTestApp(), (server, client) -> {
+        test(app, (server, client) -> {
             postForm(client.getOrigin() + "/urls", "https://duplicate.example/path");
             var response = postForm(client.getOrigin() + "/urls", "https://duplicate.example/another-path");
             var body = response.body();
@@ -165,7 +180,7 @@ class AppTest {
 
     @Test
     void invalidUrlReturnsUnprocessableEntity() throws Exception {
-        test(getTestApp(), (server, client) -> {
+        test(app, (server, client) -> {
             var response = postForm(client.getOrigin() + "/urls", "invalid-url");
             var body = response.body();
 
@@ -182,7 +197,7 @@ class AppTest {
 
     @Test
     void urlCheckCanBeCreated() throws Exception {
-        test(getTestApp(), (server, client) -> {
+        test(app, (server, client) -> {
             var longDescription = "a".repeat(210);
             var html = "<!doctype html><html><head>"
                     + "<title>Test title</title>"
@@ -196,11 +211,12 @@ class AppTest {
             postForm(client.getOrigin() + "/urls", mockWebServer.url("/").toString());
             var url = UrlRepository.getEntities().get(0);
             var response = postEmpty(client.getOrigin() + "/urls/" + url.getId() + "/checks");
-            var body = response.body();
             var request = mockWebServer.takeRequest(1, TimeUnit.SECONDS);
 
-            assertEquals(200, response.statusCode());
             assertNotNull(request);
+            var body = response.body();
+
+            assertEquals(200, response.statusCode());
             assertEquals("/", request.getPath());
             assertTrue(body.contains("Страница успешно проверена"));
             assertTrue(body.contains("data-test=\"checks\""));
@@ -221,7 +237,7 @@ class AppTest {
 
     @Test
     void urlCheckFailureDoesNotCreateRecord() throws Exception {
-        test(getTestApp(), (server, client) -> {
+        test(app, (server, client) -> {
             mockWebServer.enqueue(new MockResponse()
                     .setResponseCode(500)
                     .setBody("Server error"));
@@ -241,7 +257,7 @@ class AppTest {
 
     @Test
     void urlCheckCanBeCreatedWithoutSeoTags() throws Exception {
-        test(getTestApp(), (server, client) -> {
+        test(app, (server, client) -> {
             mockWebServer.enqueue(new MockResponse()
                     .setResponseCode(200)
                     .setBody("<!doctype html><html><head></head><body></body></html>")
@@ -263,7 +279,7 @@ class AppTest {
 
     @Test
     void missingUrlCheckReturnsNotFound() throws Exception {
-        test(getTestApp(), (server, client) -> {
+        test(app, (server, client) -> {
             var response = client.post("/urls/999999/checks");
 
             assertEquals(404, response.code());
@@ -348,11 +364,6 @@ class AppTest {
         assertDoesNotThrow(() -> App.main(new String[] {}));
         App.stopApp();
     }
-    private static Javalin getTestApp() throws Exception {
-        var databaseUrl = "jdbc:h2:mem:app_test_" + System.nanoTime() + ";DB_CLOSE_DELAY=-1;";
-        return App.getApp(databaseUrl);
-    }
-
     private static HttpResponse<String> postEmpty(String url) throws Exception {
         var request = HttpRequest.newBuilder()
                 .uri(URI.create(url))

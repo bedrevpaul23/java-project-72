@@ -1,8 +1,11 @@
 package hexlet.code.model;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public final class UrlCheck {
+    private static final DateTimeFormatter DATE_TIME_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
     private static final int MAX_DISPLAY_LENGTH = 200;
     private static final int TRUNCATED_TEXT_LENGTH = 197;
 
@@ -79,7 +82,7 @@ public final class UrlCheck {
     }
 
     public String getCreatedAtAsDate() {
-        return createdAt.toLocalDate().toString();
+        return createdAt.format(DATE_TIME_FORMATTER);
     }
 
     public String getH1ForDisplay() {
