@@ -52,7 +52,7 @@ https://example.com/some/page?query=value
 https://example.com
 ```
 
-Если URL некорректный, сайт не будет добавлен, а приложение покажет сообщение **Некорректный URL**.
+Поддерживаются только URL со схемами `http` и `https`. Если URL некорректный или использует другую схему, сайт не будет добавлен, а приложение покажет сообщение **Некорректный URL**.
 
 Если такой сайт уже есть в базе, новая запись не создаётся. Приложение откроет страницу уже добавленного сайта и покажет сообщение **Страница уже существует**.
 
@@ -62,7 +62,7 @@ https://example.com
 
 - ID;
 - имя сайта;
-- дату последней проверки;
+- дату и время последней проверки;
 - последний HTTP-код ответа.
 
 Название сайта является ссылкой на страницу конкретного сайта.
@@ -94,7 +94,7 @@ https://example.com
 - найденный `h1`;
 - найденный `title`;
 - найденный `description`;
-- дата проверки.
+- дата и время проверки.
 
 Длинные значения `h1`, `title` и `description` отображаются в обрезанном виде.
 
@@ -183,7 +183,7 @@ After submitting the form, the application normalizes the address and stores onl
 https://example.com
 ```
 
-If the URL is invalid, the website is not added and the application shows **Некорректный URL**.
+Only URLs using the `http` or `https` scheme are supported. If the URL is invalid or uses another scheme, the website is not added and the application shows **Некорректный URL**.
 
 If the website already exists in the database, the application does not create a duplicate record. It opens the existing website page and shows **Страница уже существует**.
 
@@ -193,7 +193,7 @@ The **Сайты** page displays all added websites. For each website, you can s
 
 - ID;
 - website URL;
-- latest check date;
+- latest check date and time;
 - latest HTTP response code.
 
 The website URL is a link to the website details page.
@@ -225,7 +225,7 @@ For every successful check, the table displays:
 - extracted `h1`;
 - extracted `title`;
 - extracted `description`;
-- check date.
+- check date and time.
 
 Long `h1`, `title`, and `description` values are truncated in the table.
 
