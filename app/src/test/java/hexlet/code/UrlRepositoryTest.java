@@ -4,16 +4,34 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.zaxxer.hikari.HikariDataSource;
 import hexlet.code.model.Url;
+import hexlet.code.repository.BaseRepository;
 import hexlet.code.repository.UrlRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class UrlRepositoryTest {
+    private HikariDataSource dataSource;
+
     @BeforeEach
     void setUp() throws Exception {
-        var databaseUrl = "jdbc:h2:mem:repository_test_" + System.nanoTime() + ";DB_CLOSE_DELAY=-1;";
-        App.initDatabase(databaseUrl);
+        var databaseUrl = "jdbc:h2:mem:repository_test_"
+                + System.nanoTime()
+                + ";DB_CLOSE_DELAY=-1;";
+
+        dataSource = App.initDatabase(databaseUrl);
+        BaseRepository.dataSource = dataSource;
+    }
+
+    @AfterEach
+    void tearDown() {
+        dataSource.close();
+
+        if (BaseRepository.dataSource == dataSource) {
+            BaseRepository.dataSource = null;
+        }
     }
 
     @Test

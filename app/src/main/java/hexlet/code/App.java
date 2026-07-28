@@ -36,21 +36,44 @@ public final class App {
     }
 
     static Javalin getApp(String jdbcUrl) throws SQLException, IOException {
-        initDatabase(jdbcUrl);
+        var dataSource = initDatabase(jdbcUrl);
+        BaseRepository.dataSource = dataSource;
 
-        return Javalin.create(config -> {
-            config.bundledPlugins.enableDevLogging();
-            config.fileRenderer(new JavalinJte(createTemplateEngine()));
+        try {
+            return Javalin.create(config -> {
+                config.events.serverStartFailed(
+                        () -> closeDataSource(dataSource)
+                );
+                config.events.serverStopped(
+                        () -> closeDataSource(dataSource)
+                );
 
-            config.routes.get("/", UrlController::root);
-            config.routes.post("/urls", UrlController::create);
-            config.routes.get("/urls", UrlController::index);
-            config.routes.get("/urls/{id}", UrlController::show);
-            config.routes.post(
-                    "/urls/{id}/checks",
-                    UrlController::createCheck
-            );
-        });
+                config.bundledPlugins.enableDevLogging();
+                config.fileRenderer(new JavalinJte(createTemplateEngine()));
+
+                config.routes.get("/", UrlController::root);
+                config.routes.post("/urls", UrlController::create);
+                config.routes.get("/urls", UrlController::index);
+                config.routes.get("/urls/{id}", UrlController::show);
+                config.routes.post(
+                        "/urls/{id}/checks",
+                        UrlController::createCheck
+                );
+            });
+        } catch (RuntimeException exception) {
+            closeDataSource(dataSource);
+            throw exception;
+        }
+    }
+
+    private static void closeDataSource(HikariDataSource dataSource) {
+        if (!dataSource.isClosed()) {
+            dataSource.close();
+        }
+
+        if (BaseRepository.dataSource == dataSource) {
+            BaseRepository.dataSource = null;
+        }
     }
 
     public static void main(String[] args) throws SQLException, IOException {
@@ -86,14 +109,25 @@ public final class App {
                 : jdbcDatabaseUrl;
     }
 
-    static void initDatabase() throws SQLException, IOException {
-        initDatabase(getDatabaseUrl());
+    static HikariDataSource initDatabase()
+            throws SQLException, IOException {
+        return initDatabase(getDatabaseUrl());
     }
 
-    static void initDatabase(String jdbcUrl) throws SQLException, IOException {
+    static HikariDataSource initDatabase(String jdbcUrl)
+            throws SQLException, IOException {
         var dataSource = buildDataSource(jdbcUrl);
-        BaseRepository.dataSource = dataSource;
-        executeSql(dataSource, readResourceFile("schema.sql"));
+
+        try {
+            executeSql(
+                    dataSource,
+                    readResourceFile("schema.sql")
+            );
+            return dataSource;
+        } catch (SQLException | IOException exception) {
+            dataSource.close();
+            throw exception;
+        }
     }
 
     static HikariDataSource buildDataSource(String jdbcUrl) {
@@ -133,9 +167,8 @@ public final class App {
         }
     }
 
-    private static String readResourceFile(
-            String fileName
-    ) throws IOException {
+    private static String readResourceFile(String fileName)
+            throws IOException {
         var inputStream = Objects.requireNonNull(
                 App.class.getClassLoader().getResourceAsStream(fileName)
         );

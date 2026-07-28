@@ -15,12 +15,30 @@ import hexlet.code.model.UrlCheck;
 import hexlet.code.repository.BaseRepository;
 import hexlet.code.repository.UrlCheckRepository;
 import hexlet.code.repository.UrlRepository;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class GeneratedKeysFailureTest {
+    private HikariDataSource dataSource;
+
+    @BeforeEach
+    void setUp() {
+        dataSource = dataSourceWithoutGeneratedKeys();
+        BaseRepository.dataSource = dataSource;
+    }
+
+    @AfterEach
+    void tearDown() {
+        dataSource.close();
+
+        if (BaseRepository.dataSource == dataSource) {
+            BaseRepository.dataSource = null;
+        }
+    }
+
     @Test
     void urlRepositoryThrowsWhenGeneratedKeyIsMissing() {
-        BaseRepository.dataSource = dataSourceWithoutGeneratedKeys();
 
         assertThrows(
                 SQLException.class,
@@ -30,7 +48,6 @@ class GeneratedKeysFailureTest {
 
     @Test
     void urlCheckRepositoryThrowsWhenGeneratedKeyIsMissing() {
-        BaseRepository.dataSource = dataSourceWithoutGeneratedKeys();
         var urlCheck = new UrlCheck(1L, 200, "h1", "title", "description");
 
         assertThrows(SQLException.class, () -> UrlCheckRepository.save(urlCheck));

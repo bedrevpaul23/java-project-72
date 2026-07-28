@@ -4,18 +4,37 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.zaxxer.hikari.HikariDataSource;
 import hexlet.code.model.Url;
 import hexlet.code.model.UrlCheck;
+import hexlet.code.repository.BaseRepository;
 import hexlet.code.repository.UrlCheckRepository;
 import hexlet.code.repository.UrlRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class UrlCheckRepositoryTest {
+    private HikariDataSource dataSource;
+
     @BeforeEach
     void setUp() throws Exception {
-        var databaseUrl = "jdbc:h2:mem:url_check_repository_test_" + System.nanoTime() + ";DB_CLOSE_DELAY=-1;";
-        App.initDatabase(databaseUrl);
+        var databaseUrl =
+                "jdbc:h2:mem:url_check_repository_test_"
+                        + System.nanoTime()
+                        + ";DB_CLOSE_DELAY=-1;";
+
+        dataSource = App.initDatabase(databaseUrl);
+        BaseRepository.dataSource = dataSource;
+    }
+
+    @AfterEach
+    void tearDown() {
+        dataSource.close();
+
+        if (BaseRepository.dataSource == dataSource) {
+            BaseRepository.dataSource = null;
+        }
     }
 
     @Test
@@ -67,45 +86,15 @@ class UrlCheckRepositoryTest {
         UrlRepository.save(firstUrl);
         UrlRepository.save(secondUrl);
 
-        UrlCheckRepository.save(
-                new UrlCheck(
-                        firstUrl.getId(),
-                        200,
-                        "First",
-                        "First",
-                        "First"
-                )
-        );
-        UrlCheckRepository.save(
-                new UrlCheck(
-                        firstUrl.getId(),
-                        201,
-                        "Latest",
-                        "Latest",
-                        "Latest"
-                )
-        );
-        UrlCheckRepository.save(
-                new UrlCheck(
-                        secondUrl.getId(),
-                        204,
-                        "",
-                        "",
-                        ""
-                )
-        );
+        UrlCheckRepository.save(new UrlCheck(firstUrl.getId(), 200, "First", "First", "First"));
+        UrlCheckRepository.save(new UrlCheck(firstUrl.getId(), 201, "Latest", "Latest", "Latest"));
+        UrlCheckRepository.save(new UrlCheck(secondUrl.getId(), 204, "", "", ""));
 
         var latestChecks = UrlCheckRepository.findLatestChecks();
 
         assertEquals(2, latestChecks.size());
-        assertEquals(
-                201,
-                latestChecks.get(firstUrl.getId()).getStatusCode()
-        );
-        assertEquals(
-                204,
-                latestChecks.get(secondUrl.getId()).getStatusCode()
-        );
+        assertEquals(201, latestChecks.get(firstUrl.getId()).getStatusCode());
+        assertEquals(204, latestChecks.get(secondUrl.getId()).getStatusCode());
     }
 
     @Test
