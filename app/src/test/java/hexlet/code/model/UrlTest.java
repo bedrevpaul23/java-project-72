@@ -19,6 +19,5 @@ class UrlTest {
         assertEquals(1L, url.getId());
         assertEquals("https://example.com", url.getName());
         assertEquals(createdAt, url.getCreatedAt());
-        assertEquals("2026-02-20", url.getCreatedAtAsDate());
     }
 }

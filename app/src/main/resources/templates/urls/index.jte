@@ -1,12 +1,13 @@
 @import java.util.List
 @import java.util.Map
 @import hexlet.code.model.Url
+@import hexlet.code.model.UrlCheck
+@import hexlet.code.util.FormatUtils
 
 @param List<Url> urls
-@param Map<Long, String> latestCheckDates
-@param Map<Long, String> latestCheckStatusCodes
+@param Map<Long, UrlCheck> latestChecks
 @param String flash
-@param String flashClass
+@param String flashStatus
 
 @template.layout(
 content = @`
@@ -27,13 +28,13 @@ content = @`
         <td>${url.getId()}</td>
         <td><a href="${"/urls/" + url.getId()}">${url.getName()}</a></td>
         <td>
-          @if (latestCheckDates.containsKey(url.getId()))
-            ${latestCheckDates.get(url.getId())}
+          @if (latestChecks.containsKey(url.getId()))
+            ${FormatUtils.formatDateTime(latestChecks.get(url.getId()).getCreatedAt())}
           @endif
         </td>
         <td>
-          @if (latestCheckStatusCodes.containsKey(url.getId()))
-            ${latestCheckStatusCodes.get(url.getId())}
+          @if (latestChecks.containsKey(url.getId()))
+            ${latestChecks.get(url.getId()).getStatusCode()}
           @endif
         </td>
       </tr>
@@ -42,5 +43,5 @@ content = @`
 </table>
 `,
 flash = flash,
-flashClass = flashClass
+flashStatus = flashStatus
 )

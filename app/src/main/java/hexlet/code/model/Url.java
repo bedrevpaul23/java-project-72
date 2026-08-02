@@ -35,7 +35,4 @@ public final class Url {
         createdAt = newCreatedAt;
     }
 
-    public String getCreatedAtAsDate() {
-        return createdAt.toLocalDate().toString();
-    }
 }

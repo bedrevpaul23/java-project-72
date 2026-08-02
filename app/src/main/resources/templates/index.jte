@@ -1,5 +1,5 @@
 @param String flash
-@param String flashClass
+@param String flashStatus
 
 @template.layout(
 content = @`
@@ -30,5 +30,5 @@ content = @`
 </div>
 `,
 flash = flash,
-flashClass = flashClass
+flashStatus = flashStatus
 )

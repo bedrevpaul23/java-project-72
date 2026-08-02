@@ -20,6 +20,7 @@ import hexlet.code.repository.BaseRepository;
 import hexlet.code.repository.UrlCheckRepository;
 import hexlet.code.repository.UrlRepository;
 import io.javalin.Javalin;
+import io.javalin.http.HttpStatus;
 import io.javalin.testtools.FormBody;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -83,6 +84,7 @@ class AppTest {
             assertTrue(body.contains("Бесплатно проверяйте сайты на SEO пригодность"));
             assertTrue(body.contains("action=\"/urls\""));
             assertTrue(body.contains("https://www.example.com"));
+            assertTrue(body.contains("text-center"));
         });
     }
 
@@ -181,6 +183,7 @@ class AppTest {
             assertEquals(200, pageResponse.code());
             assertTrue(body.contains("https://example.com"));
             assertTrue(body.contains("Страница успешно добавлена"));
+            assertTrue(body.contains("alert-success"));
             assertEquals(1, urls.size());
             assertEquals("https://example.com", url.getName());
         });
@@ -216,6 +219,7 @@ class AppTest {
             assertEquals(200, pageResponse.code());
             assertTrue(body.contains("https://duplicate.example"));
             assertTrue(body.contains("Страница уже существует"));
+            assertTrue(body.contains("alert-info"));
             assertEquals(1, urls.size());
         });
     }
@@ -229,16 +233,17 @@ class AppTest {
             );
             var body = response.body().string();
 
-            assertEquals(422, response.code());
+            assertEquals(HttpStatus.UNPROCESSABLE_CONTENT.getCode(), response.code());
             assertTrue(body.contains("Анализатор страниц"));
             assertTrue(body.contains("Некорректный URL"));
+            assertTrue(body.contains("alert-danger"));
 
             var blankResponse = client.request(
                     "/urls",
                     builder -> builder.post(urlForm(""))
             );
 
-            assertEquals(422, blankResponse.code());
+            assertEquals(HttpStatus.UNPROCESSABLE_CONTENT.getCode(), blankResponse.code());
             assertTrue(
                     blankResponse.body()
                             .string()
@@ -296,15 +301,18 @@ class AppTest {
             assertEquals(200, pageResponse.code());
             assertEquals("/", request.getPath());
             assertTrue(body.contains("Страница успешно проверена"));
+            assertTrue(body.contains("alert-success"));
             assertTrue(body.contains("data-test=\"checks\""));
             assertTrue(body.contains("<td>200</td>"));
             assertTrue(body.contains("Main header"));
             assertTrue(body.contains("Test title"));
             assertTrue(body.contains("a".repeat(197) + "..."));
-            assertEquals(
-                    1,
-                    UrlCheckRepository.findByUrlId(url.getId()).size()
-            );
+            var savedChecks = UrlCheckRepository.findByUrlId(url.getId());
+            assertEquals(1, savedChecks.size());
+            var savedCheck = savedChecks.get(0);
+            assertEquals("Main header", savedCheck.getH1());
+            assertEquals("Test title", savedCheck.getTitle());
+            assertEquals(longDescription, savedCheck.getDescription());
 
             var urlsResponse = client.get("/urls");
             var urlsBody = urlsResponse.body().string();
@@ -356,6 +364,7 @@ class AppTest {
             assertTrue(
                     body.contains("Произошла ошибка при проверке")
             );
+            assertTrue(body.contains("alert-danger"));
             assertTrue(
                     UrlCheckRepository.findByUrlId(url.getId()).isEmpty()
             );

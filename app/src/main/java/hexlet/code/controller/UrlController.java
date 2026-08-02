@@ -12,6 +12,7 @@ import hexlet.code.model.UrlCheck;
 import hexlet.code.repository.UrlCheckRepository;
 import hexlet.code.repository.UrlRepository;
 import io.javalin.http.Context;
+import io.javalin.http.HttpStatus;
 import io.javalin.http.NotFoundResponse;
 import kong.unirest.core.Unirest;
 import org.jsoup.Jsoup;
@@ -46,7 +47,7 @@ public final class UrlController {
 
         if (existingUrl.isPresent()) {
             var url = existingUrl.get();
-            setFlash(ctx, "Страница уже существует", "alert alert-info");
+            setFlash(ctx, "Страница уже существует", "info");
             ctx.redirect("/urls/" + url.getId());
             return;
         }
@@ -54,29 +55,17 @@ public final class UrlController {
         var url = new Url(normalizedName);
         UrlRepository.save(url);
 
-        setFlash(ctx, "Страница успешно добавлена", "alert alert-success");
+        setFlash(ctx, "Страница успешно добавлена", "success");
         ctx.redirect("/urls/" + url.getId());
     }
 
     public static void index(Context ctx) throws SQLException {
         var urls = UrlRepository.getEntities();
         var latestChecks = UrlCheckRepository.findLatestChecks();
-        var latestCheckDates = new HashMap<Long, String>();
-        var latestCheckStatusCodes = new HashMap<Long, String>();
-
-        for (var url : urls) {
-            var latestCheck = latestChecks.get(url.getId());
-
-            if (latestCheck != null) {
-                latestCheckDates.put(url.getId(), latestCheck.getCreatedAtAsDate());
-                latestCheckStatusCodes.put(url.getId(), String.valueOf(latestCheck.getStatusCode()));
-            }
-        }
 
         var pageData = getPageData(ctx);
         pageData.put("urls", urls);
-        pageData.put("latestCheckDates", latestCheckDates);
-        pageData.put("latestCheckStatusCodes", latestCheckStatusCodes);
+        pageData.put("latestChecks", latestChecks);
 
         ctx.render("urls/index.jte", pageData);
     }
@@ -102,9 +91,9 @@ public final class UrlController {
             var urlCheck = checkUrl(url);
             UrlCheckRepository.save(urlCheck);
 
-            setFlash(ctx, "Страница успешно проверена", "alert alert-success");
+            setFlash(ctx, "Страница успешно проверена", "success");
         } catch (RuntimeException exception) {
-            setFlash(ctx, "Произошла ошибка при проверке", "alert alert-danger");
+            setFlash(ctx, "Произошла ошибка при проверке", "danger");
         }
 
         ctx.redirect("/urls/" + id);
@@ -146,7 +135,7 @@ public final class UrlController {
     private static UrlCheck checkUrl(Url url) {
         var response = Unirest.get(url.getName()).asString();
 
-        if (response.getStatus() >= 400) {
+        if (response.getStatus() >= HttpStatus.BAD_REQUEST.getCode()) {
             throw new IllegalStateException("URL check failed with status " + response.getStatus());
         }
 
@@ -167,22 +156,23 @@ public final class UrlController {
     }
 
     private static Map<String, Object> getPageData(Context ctx) {
-        return getPageData(ctx.consumeSessionAttribute("flash"), ctx.consumeSessionAttribute("flashClass"));
+        return getPageData(ctx.consumeSessionAttribute("flash"), ctx.consumeSessionAttribute("flashStatus"));
     }
 
-    private static Map<String, Object> getPageData(String flash, String flashClass) {
+    private static Map<String, Object> getPageData(String flash, String flashStatus) {
         var pageData = new HashMap<String, Object>();
         pageData.put("flash", flash);
-        pageData.put("flashClass", flashClass);
+        pageData.put("flashStatus", flashStatus);
         return pageData;
     }
 
-    private static void setFlash(Context ctx, String flash, String flashClass) {
+    private static void setFlash(Context ctx, String flash, String flashStatus) {
         ctx.sessionAttribute("flash", flash);
-        ctx.sessionAttribute("flashClass", flashClass);
+        ctx.sessionAttribute("flashStatus", flashStatus);
     }
 
     private static void renderInvalidUrl(Context ctx) {
-        ctx.status(422).render("index.jte", getPageData("Некорректный URL", "alert alert-danger"));
+        ctx.status(HttpStatus.UNPROCESSABLE_CONTENT)
+                .render("index.jte", getPageData("Некорректный URL", "danger"));
     }
 }

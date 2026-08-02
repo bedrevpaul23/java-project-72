@@ -1,11 +1,12 @@
 @import java.util.List
 @import hexlet.code.model.Url
 @import hexlet.code.model.UrlCheck
+@import hexlet.code.util.FormatUtils
 
 @param Url url
 @param List<UrlCheck> checks
 @param String flash
-@param String flashClass
+@param String flashStatus
 
 @template.layout(
 content = @`
@@ -23,7 +24,7 @@ content = @`
     </tr>
     <tr>
       <td>Дата создания</td>
-      <td>${url.getCreatedAtAsDate()}</td>
+      <td>${FormatUtils.formatDate(url.getCreatedAt())}</td>
     </tr>
   </tbody>
 </table>
@@ -50,15 +51,15 @@ content = @`
       <tr>
         <td>${check.getId()}</td>
         <td>${check.getStatusCode()}</td>
-        <td>${check.getH1ForDisplay()}</td>
-        <td>${check.getTitleForDisplay()}</td>
-        <td>${check.getDescriptionForDisplay()}</td>
-        <td>${check.getCreatedAtAsDate()}</td>
+        <td>${FormatUtils.truncate(check.getH1())}</td>
+        <td>${FormatUtils.truncate(check.getTitle())}</td>
+        <td>${FormatUtils.truncate(check.getDescription())}</td>
+        <td>${FormatUtils.formatDateTime(check.getCreatedAt())}</td>
       </tr>
     @endfor
   </tbody>
 </table>
 `,
 flash = flash,
-flashClass = flashClass
+flashStatus = flashStatus
 )

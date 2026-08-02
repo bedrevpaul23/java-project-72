@@ -2,7 +2,7 @@
 
 @param Content content
 @param String flash
-@param String flashClass
+@param String flashStatus
 
 <!doctype html>
 <html lang="ru">
@@ -26,12 +26,12 @@
   </nav>
   <main class="container flex-grow-1 py-3">
     @if (flash != null)
-      <div class="${flashClass}" role="alert">${flash}</div>
+      <div class="alert alert-${flashStatus}" role="alert">${flash}</div>
     @endif
     ${content}
   </main>
   <footer class="border-top py-3 mt-5">
-    <div class="container text-muted">
+    <div class="container text-muted text-center">
       Hexlet
     </div>
   </footer>
