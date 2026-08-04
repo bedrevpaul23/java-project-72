@@ -17,7 +17,7 @@ public final class UrlCheckRepository extends BaseRepository {
     private UrlCheckRepository() {
     }
 
-    public static void save(UrlCheck urlCheck) throws SQLException {
+    public static void save(UrlCheck urlCheck) {
         var sql = """
                 INSERT INTO url_checks (url_id, status_code, h1, title, description, created_at)
                 VALUES (?, ?, ?, ?, ?, ?)
@@ -35,49 +35,60 @@ public final class UrlCheckRepository extends BaseRepository {
             preparedStatement.setTimestamp(6, Timestamp.valueOf(createdAt));
             preparedStatement.executeUpdate();
 
-            var generatedKeys = preparedStatement.getGeneratedKeys();
-            if (generatedKeys.next()) {
-                urlCheck.setId(generatedKeys.getLong(1));
-                urlCheck.setCreatedAt(createdAt);
-            } else {
-                throw new SQLException("DB has not returned an id after saving an entity");
+            try (var generatedKeys = preparedStatement.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    urlCheck.setId(generatedKeys.getLong(1));
+                    urlCheck.setCreatedAt(createdAt);
+                } else {
+                    throw new RepositoryException(
+                            "Database did not return a generated id while saving URL check"
+                    );
+                }
             }
+        } catch (SQLException exception) {
+            throw new RepositoryException("Failed to save URL check", exception);
         }
     }
 
-    public static List<UrlCheck> findByUrlId(Long urlId) throws SQLException {
+    public static List<UrlCheck> findByUrlId(Long urlId) {
         var sql = "SELECT * FROM url_checks WHERE url_id = ? ORDER BY created_at DESC, id DESC";
         try (var connection = dataSource.getConnection();
                 var preparedStatement = connection.prepareStatement(sql)) {
             preparedStatement.setLong(1, urlId);
 
-            var resultSet = preparedStatement.executeQuery();
-            var result = new ArrayList<UrlCheck>();
+            try (var resultSet = preparedStatement.executeQuery()) {
+                var result = new ArrayList<UrlCheck>();
 
-            while (resultSet.next()) {
-                result.add(buildUrlCheck(resultSet));
+                while (resultSet.next()) {
+                    result.add(buildUrlCheck(resultSet));
+                }
+
+                return result;
             }
-
-            return result;
+        } catch (SQLException exception) {
+            throw new RepositoryException("Failed to find URL checks by URL id", exception);
         }
     }
 
-    public static Optional<UrlCheck> findLatestByUrlId(Long urlId) throws SQLException {
+    public static Optional<UrlCheck> findLatestByUrlId(Long urlId) {
         var sql = "SELECT * FROM url_checks WHERE url_id = ? ORDER BY created_at DESC, id DESC LIMIT 1";
         try (var connection = dataSource.getConnection();
                 var preparedStatement = connection.prepareStatement(sql)) {
             preparedStatement.setLong(1, urlId);
 
-            var resultSet = preparedStatement.executeQuery();
-            if (resultSet.next()) {
-                return Optional.of(buildUrlCheck(resultSet));
-            }
+            try (var resultSet = preparedStatement.executeQuery()) {
+                if (resultSet.next()) {
+                    return Optional.of(buildUrlCheck(resultSet));
+                }
 
-            return Optional.empty();
+                return Optional.empty();
+            }
+        } catch (SQLException exception) {
+            throw new RepositoryException("Failed to find latest URL check by URL id", exception);
         }
     }
 
-    public static Map<Long, UrlCheck> findLatestChecks() throws SQLException {
+    public static Map<Long, UrlCheck> findLatestChecks() {
         var sql = """
                 SELECT id,
                        url_id,
@@ -99,15 +110,18 @@ public final class UrlCheckRepository extends BaseRepository {
 
         try (var connection = dataSource.getConnection();
                 var preparedStatement = connection.prepareStatement(sql)) {
-            var resultSet = preparedStatement.executeQuery();
-            var result = new HashMap<Long, UrlCheck>();
+            try (var resultSet = preparedStatement.executeQuery()) {
+                var result = new HashMap<Long, UrlCheck>();
 
-            while (resultSet.next()) {
-                var urlCheck = buildUrlCheck(resultSet);
-                result.put(urlCheck.getUrlId(), urlCheck);
+                while (resultSet.next()) {
+                    var urlCheck = buildUrlCheck(resultSet);
+                    result.put(urlCheck.getUrlId(), urlCheck);
+                }
+
+                return result;
             }
-
-            return result;
+        } catch (SQLException exception) {
+            throw new RepositoryException("Failed to find latest URL checks", exception);
         }
     }
 

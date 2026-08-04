@@ -1,5 +1,8 @@
 package hexlet.code;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.lang.reflect.InvocationHandler;
@@ -13,6 +16,7 @@ import com.zaxxer.hikari.HikariDataSource;
 import hexlet.code.model.Url;
 import hexlet.code.model.UrlCheck;
 import hexlet.code.repository.BaseRepository;
+import hexlet.code.repository.RepositoryException;
 import hexlet.code.repository.UrlCheckRepository;
 import hexlet.code.repository.UrlRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -39,18 +43,54 @@ class GeneratedKeysFailureTest {
 
     @Test
     void urlRepositoryThrowsWhenGeneratedKeyIsMissing() {
-
-        assertThrows(
-                SQLException.class,
+        var exception = assertThrows(
+                RepositoryException.class,
                 () -> UrlRepository.save(new Url("https://missing-key.example"))
         );
+
+        assertEquals(
+                "Database did not return a generated id while saving URL",
+                exception.getMessage()
+        );
+        assertNull(exception.getCause());
     }
 
     @Test
     void urlCheckRepositoryThrowsWhenGeneratedKeyIsMissing() {
         var urlCheck = new UrlCheck(1L, 200, "h1", "title", "description");
 
-        assertThrows(SQLException.class, () -> UrlCheckRepository.save(urlCheck));
+        var exception = assertThrows(
+                RepositoryException.class,
+                () -> UrlCheckRepository.save(urlCheck)
+        );
+
+        assertEquals(
+                "Database did not return a generated id while saving URL check",
+                exception.getMessage()
+        );
+        assertNull(exception.getCause());
+    }
+
+    @Test
+    void urlRepositoryPreservesJdbcFailureAsCause() {
+        var originalDataSource = BaseRepository.dataSource;
+        var failingDataSource = dataSourceWithConnectionFailure();
+
+        try {
+            BaseRepository.dataSource = failingDataSource;
+
+            var exception = assertThrows(
+                    RepositoryException.class,
+                    () -> UrlRepository.save(new Url("https://database-error.example"))
+            );
+
+            assertEquals("Failed to save URL", exception.getMessage());
+            var cause = assertInstanceOf(SQLException.class, exception.getCause());
+            assertEquals("Connection failed", cause.getMessage());
+        } finally {
+            BaseRepository.dataSource = originalDataSource;
+            failingDataSource.close();
+        }
     }
 
     private static HikariDataSource dataSourceWithoutGeneratedKeys() {
@@ -58,6 +98,15 @@ class GeneratedKeysFailureTest {
             @Override
             public Connection getConnection() {
                 return connectionWithoutGeneratedKeys();
+            }
+        };
+    }
+
+    private static HikariDataSource dataSourceWithConnectionFailure() {
+        return new HikariDataSource() {
+            @Override
+            public Connection getConnection() throws SQLException {
+                throw new SQLException("Connection failed");
             }
         };
     }

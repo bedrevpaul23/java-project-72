@@ -2,7 +2,6 @@ package hexlet.code.controller;
 
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -25,7 +24,7 @@ public final class UrlController {
         ctx.render("index.jte", getPageData(ctx));
     }
 
-    public static void create(Context ctx) throws SQLException {
+    public static void create(Context ctx) {
         var inputUrl = Objects.toString(ctx.formParam("url"), "").trim();
         URI parsedUrl;
 
@@ -59,7 +58,7 @@ public final class UrlController {
         ctx.redirect("/urls/" + url.getId());
     }
 
-    public static void index(Context ctx) throws SQLException {
+    public static void index(Context ctx) {
         var urls = UrlRepository.getEntities();
         var latestChecks = UrlCheckRepository.findLatestChecks();
 
@@ -70,7 +69,7 @@ public final class UrlController {
         ctx.render("urls/index.jte", pageData);
     }
 
-    public static void show(Context ctx) throws SQLException {
+    public static void show(Context ctx) {
         var id = Long.valueOf(ctx.pathParam("id"));
         var url = UrlRepository.find(id)
                 .orElseThrow(() -> new NotFoundResponse("Url not found"));
@@ -82,20 +81,22 @@ public final class UrlController {
         ctx.render("urls/show.jte", pageData);
     }
 
-    public static void createCheck(Context ctx) throws SQLException {
+    public static void createCheck(Context ctx) {
         var id = Long.valueOf(ctx.pathParam("id"));
         var url = UrlRepository.find(id)
                 .orElseThrow(() -> new NotFoundResponse("Url not found"));
 
+        UrlCheck urlCheck;
         try {
-            var urlCheck = checkUrl(url);
-            UrlCheckRepository.save(urlCheck);
-
-            setFlash(ctx, "Страница успешно проверена", "success");
+            urlCheck = checkUrl(url);
         } catch (RuntimeException exception) {
             setFlash(ctx, "Произошла ошибка при проверке", "danger");
+            ctx.redirect("/urls/" + id);
+            return;
         }
 
+        UrlCheckRepository.save(urlCheck);
+        setFlash(ctx, "Страница успешно проверена", "success");
         ctx.redirect("/urls/" + id);
     }
 
